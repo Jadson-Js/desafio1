@@ -1,12 +1,11 @@
 // @ts-ignore
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { AppError } from "../shared/AppError.ts"
-import { AppResponse } from "../shared/AppResponse.ts";
-import { corsHeaders } from "../const/corsHeaders.ts";
+import { AppError } from "../shared/utils/AppError.ts"
+import { AppResponse } from "../shared/utils/AppResponse.ts";
+import { corsHeaders } from "../shared/const/corsHeaders.ts";
+import { supabaseClient } from "../shared/supabaseClient.ts";
 
 // @ts-ignore
 Deno.serve(async (req)=>{
-  // Trata a requisição OPTIONS (pré-voo) do CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: corsHeaders
@@ -14,30 +13,20 @@ Deno.serve(async (req)=>{
   }
 
   try {
-    // 1. Criar o Supabase Client
-    //@ts-ignore
-    const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", {
-      global: {
-        headers: {
-          Authorization: req.headers.get("Authorization")
-        }
-      }
-    });
+    const client = supabaseClient(req)
 
-    // 2. Autenticação
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const { data: { user } } = await client.auth.getUser();
     if (!user) {
       throw AppError.unauthorized();
     }
 
-    // 3. Obter e validar os itens do corpo da requisição
-    const { items } = await req.json(); // Espera: [{ product_id, quantity }]
+    const { items } = await req.json();
     if (!items || !Array.isArray(items) || items.length === 0) {
       throw AppError.badRequest("The item list cannot be empty");
     }
 
     // 4. CHAMAR A FUNÇÃO SQL (RPC)
-    const { data, error } = await supabaseClient.rpc("create_order", {
+    const { data, error } = await client.rpc("create_order", {
       cart_items: items
     });
 

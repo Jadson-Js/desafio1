@@ -1,14 +1,8 @@
 // @ts-ignore
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// @ts-ignore
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-
-// Cabeçalhos CORS
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-};
+import { corsHeaders } from '../shared/const/corsHeaders.ts';
+import { supabaseClient } from '../shared/supabaseClient.ts';
+import { AppError } from '../shared/utils/AppError.ts';
 
 // Função auxiliar para escapar dados para CSV
 function escapeCSV(val: any) {
@@ -21,40 +15,18 @@ function escapeCSV(val: any) {
 }
 
 serve(async (req: Request) => {
-  // Trata a requisição OPTIONS (pre-flight)
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
   try {
-    // 1. AUTENTICAÇÃO
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Missing authorization header');
-    }
+    const client = supabaseClient(req)
 
-    // @ts-ignore
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: { headers: { Authorization: authHeader } },
-      }
-    );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) {
+      throw AppError.unauthorized();
     }
 
     // 2. CONSULTA AO BANCO (AGORA USANDO A VIEW)
     // A RLS (Row Level Security) na VIEW 'user_order_details'
     // cuida da segurança automaticamente, filtrando pelo user_id.
-    const { data, error: dbError } = await supabaseClient
+    const { data, error: dbError } = await client
       .from('user_order_details') // <-- MUDANÇA PRINCIPAL AQUI
       .select('*');                 // <-- Pega todas as colunas já formatadas
 
@@ -105,7 +77,6 @@ serve(async (req: Request) => {
     };
     
     return new Response(csvContent, { headers: headersWithFile });
-
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

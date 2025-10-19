@@ -1,9 +1,9 @@
 // /supabase/functions/simulate-payment/index.ts
 //@ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { AppError } from "../shared/AppError.ts"
-import { corsHeaders } from "../const/corsHeaders.ts";
-import { AppResponse } from "../shared/AppResponse.ts";
+import { AppError } from "../shared/utils/AppError.ts"
+import { corsHeaders } from "../shared/const/corsHeaders.ts";
+import { AppResponse } from "../shared/utils/AppResponse.ts";
 
 //@ts-ignore
 Deno.serve(async (req)=>{

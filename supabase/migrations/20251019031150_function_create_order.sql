@@ -37,7 +37,7 @@ BEGIN
 
   -- 6. Cria o Pedido (Orders)
   INSERT INTO orders (user_id, status, total_price)
-  VALUES (auth.uid(), 'pending', total_price)
+  VALUES (auth.uid(), 'PENDING', total_price)
   RETURNING id INTO new_order_id;
 
   -- 7. OTIMIZADO: Insere os itens do pedido em lote
@@ -56,7 +56,7 @@ BEGIN
   WHERE p.id = cart_item.product_id; -- 'cart_item' refere-se ao alias
 
   -- 9. Sucesso!
-  RETURN jsonb_build_object('order_id', new_order_id, 'status', 'success');
+  RETURN jsonb_build_object('order_id', new_order_id, 'status', 'SUCCESS');
 
 EXCEPTION
   -- 10. Rollback
