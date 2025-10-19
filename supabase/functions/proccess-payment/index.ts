@@ -14,9 +14,6 @@ Deno.serve(async (req)=>{
     });
   }
   try {
-    // IMPORTANTE: Esta é uma função de "servidor" ou "admin".
-    // Ela deve usar a SERVICE_ROLE_KEY para ter permissão de
-    // atualizar qualquer pedido.
     //@ts-ignore
     const supabaseClient = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     // 1. Obter o ID do pedido do corpo da requisição
