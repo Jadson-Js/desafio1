@@ -17,3 +17,14 @@ export function supabaseClient (req: Request): SupabaseClient {
   });
 }
 
+export const adminSupabaseClient: SupabaseClient = createClient(
+  Deno.env.get("SUPABASE_URL") ?? "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  },
+);
+
