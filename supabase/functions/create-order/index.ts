@@ -63,7 +63,7 @@ Deno.serve(async (req)=>{
     }
   
     return new AppResponse(500, { 
-      error: "Erro interno no servidor", 
+      error: "internal server error", 
       details: error instanceof Error ? error.message : String(error) 
     });
   }
