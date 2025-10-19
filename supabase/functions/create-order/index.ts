@@ -1,6 +1,6 @@
 import { AppError } from "../shared/utils/AppError.ts";
 import { AppResponse } from "../shared/utils/AppResponse.ts";
-import { corsHeaders } from "../shared/const/corsHeaders.ts";
+import { corsHeaders } from "../shared/const/index.ts";
 import { supabaseClient } from "../shared/supabaseClient.ts";
 //@ts-ignore
 import { type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";

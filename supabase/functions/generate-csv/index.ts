@@ -1,6 +1,6 @@
 // @ts-ignore
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../shared/const/corsHeaders.ts';
+import { corsHeaders } from '../shared/const/index.ts';
 import { supabaseClient } from '../shared/supabaseClient.ts';
 import { AppError } from '../shared/utils/AppError.ts';
 

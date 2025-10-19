@@ -1,5 +1,6 @@
 // @ts-ignore
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { supabaseServiceRoleKey, supabaseUrl } from "./const/index.ts";
 
 export function supabaseClient (req: Request): SupabaseClient {
   const authHeader = req.headers.get('Authorization');
@@ -8,7 +9,7 @@ export function supabaseClient (req: Request): SupabaseClient {
   }
 
   //@ts-ignore
-  return createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", {
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
     global: {
       headers: {
         Authorization: req.headers.get("Authorization") ?? ""
@@ -17,14 +18,5 @@ export function supabaseClient (req: Request): SupabaseClient {
   });
 }
 
-export const adminSupabaseClient: SupabaseClient = createClient(
-  Deno.env.get("SUPABASE_URL") ?? "",
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  },
-);
+
 

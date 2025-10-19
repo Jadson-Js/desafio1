@@ -2,17 +2,29 @@
 
 import { AppError } from "../shared/utils/AppError.ts";
 import { AppResponse } from "../shared/utils/AppResponse.ts";
-import { corsHeaders } from "../shared/const/corsHeaders.ts";
+import { corsHeaders, StatusOrder } from "../shared/const/index.ts";
 // Importamos o cliente ADMIN (Service Role) do arquivo shared
-import { adminSupabaseClient } from "../shared/supabaseClient.ts";
+
 //@ts-ignore
 import { type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { StatusOrder } from "../shared/const/statusOrder.ts";
+
+import { supabaseServiceRoleKey, supabaseUrl } from "../shared/const/index.ts";
 
 interface RequestBody {
   order_id: string | number;
   order_status?: string;
 }
+
+const adminSupabaseClient: SupabaseClient = createClient(
+ supabaseUrl,
+  supabaseServiceRoleKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  },
+);
 
 /**
  * Contém a lógica de negócio principal.
