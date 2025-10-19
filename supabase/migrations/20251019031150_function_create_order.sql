@@ -1,63 +1,61 @@
-CREATE OR REPLACE FUNCTION public.create_order(cart_items jsonb)
-RETURNS jsonb
+CREATE OR REPLACE FUNCTION public.create_order(cart_items jsonb) -- Cria uma função chamada create_orde  que recebe o parametro cart_items como jsonb
+RETURNS  jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = 'public'
 AS $$
-DECLARE
-  new_order_id BIGINT;
-  item RECORD;
+DECLARE -- Declara-se a variaveis e tipos que serão usadas na função
+  new_order_id BIGINT; -- Tipo Inteiro grande
+  cart_item RECORD; -- Tipo generico para referir a row do DB
   product_info RECORD;
   total_price NUMERIC := 0;
 BEGIN
-  -- 1. Loop de verificação (Variável do loop é 'item')
-  --    Usando o alias 'x' para o recordset para evitar ambiguidade AQUI
-  FOR item IN 
-    SELECT * FROM jsonb_to_recordset(cart_items) AS x(product_id BIGINT, quantity INT)
+  -- Validação
+  FOR cart_item IN -- Vai criar um loop para percorrer cada linha da query
+    -- Selecione tudo do card_items (convertido em RECORD) como 
+    SELECT * FROM jsonb_to_recordset(cart_items) AS cart(product_id BIGINT, quantity INT) 
   LOOP
-    -- 2. Trava a linha do produto
     SELECT price, quantity INTO product_info
     FROM products
-    WHERE id = item.product_id -- 'item' refere-se à variável do loop
+    WHERE id = cart_item.product_id 
     FOR UPDATE; 
 
-    -- 3. Verifica se o produto existe
+    -- Valida se o item informado existe
     IF NOT FOUND THEN
-      RAISE EXCEPTION 'Produto com ID % não encontrado', item.product_id;
+      RAISE EXCEPTION 'Produto com ID % não encontrado', cart_item.product_id;
     END IF;
 
-    -- 4. Verifica o estoque
-    IF product_info.quantity < item.quantity THEN
-      RAISE EXCEPTION 'Estoque insuficiente para o produto ID %. Disponível: %, Solicitado: %', item.product_id, product_info.quantity, item.quantity;
+    -- Valida se a quantidade requisitada é menor que o stock
+    IF product_info.quantity < cart_item.quantity THEN
+      RAISE EXCEPTION 'Estoque insuficiente para o produto ID %. Disponível: %, Solicitado: %', cart_item.product_id, product_info.quantity, cart_item.quantity;
     END IF;
 
-    -- 5. Acumula o preço total
-    total_price := total_price + (product_info.price * item.quantity);
+    -- Foi delcarado do loop, agora vai acumular até o final do loop
+    total_price := total_price + (product_info.price * cart_item.quantity);
   END LOOP;
 
-  -- 6. Cria o Pedido (Orders)
+  -- Insere dentro do order um user_id, status e preço total. Retorne o id deste order e guarde na variavel new_order_id
   INSERT INTO orders (user_id, status, total_price)
   VALUES (auth.uid(), 'PENDING', total_price)
   RETURNING id INTO new_order_id;
 
-  -- 7. OTIMIZADO: Insere os itens do pedido em lote
-  --    CORRIGIDO: Usando o alias 'cart_item' para o recordset
+  -- Insere os itens do pedido na tabela order_items, incluindo:
   INSERT INTO order_items (order_id, product_id, total_quantity, total_price)
-  SELECT new_order_id, p.id, cart_item.quantity, (p.price * cart_item.quantity)
-  FROM products p
-  JOIN jsonb_to_recordset(cart_items) AS cart_item(product_id BIGINT, quantity INT) 
-    ON p.id = cart_item.product_id; -- 'cart_item' refere-se ao alias
+  -- O JOIN combina cada item do carrinho (cart_items) com a tabela products,
+  -- garantindo que só sejam inseridos produtos existentes no banco e usando o preço atual.
+  SELECT new_order_id, product.id, cart.quantity, (product.price * cart.quantity)
+  FROM products product
+  JOIN jsonb_to_recordset(cart_items) AS cart(product_id BIGINT, quantity INT) 
+    ON product.id = cart.product_id;
+
     
-  -- 8. OTIMIZADO: Subtrai o estoque em lote
-  --    CORRIGIDO: Usando o alias 'cart_item' para o recordset
-  UPDATE products p
-  SET quantity = p.quantity - cart_item.quantity
-  FROM jsonb_to_recordset(cart_items) AS cart_item(product_id BIGINT, quantity INT)
-  WHERE p.id = cart_item.product_id; -- 'cart_item' refere-se ao alias
 
-  -- 9. Sucesso!
+  UPDATE products product
+  SET quantity = product.quantity - cart_item.quantity
+  FROM jsonb_to_recordset(cart_items) AS cart(product_id BIGINT, quantity INT)
+  WHERE product.id = cart.product_id;
+
   RETURN jsonb_build_object('order_id', new_order_id, 'status', 'SUCCESS');
-
 EXCEPTION
   -- 10. Rollback
   WHEN OTHERS THEN
