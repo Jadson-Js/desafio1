@@ -4,7 +4,7 @@ create table public.order_items (
   updated_at timestamp with time zone not null default now(),
   order_id bigint not null,
   product_id bigint not null,
-  quantity integer not null default 0,
+  total_quantity integer not null default 0,
   total_price numeric not null default '0'::numeric,
   constraint order_items_pkey primary key (id),
   constraint order_items_product_id_fkey foreign KEY (product_id) references products (id),
