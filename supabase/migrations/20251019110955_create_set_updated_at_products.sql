@@ -1,9 +1,3 @@
-/* CREATE OR REPLACE FUNCTION "public"."set_updated_at_products"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    SET "search_path" TO 'public'
-    AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$; */
+CREATE OR REPLACE TRIGGER "trigger_set_updated_at_in_products" 
+BEFORE UPDATE ON "public"."products" 
+FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at_products"();
