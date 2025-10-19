@@ -4,7 +4,7 @@ import { corsHeaders } from '../shared/const/corsHeaders.ts';
 import { supabaseClient } from '../shared/supabaseClient.ts';
 import { AppError } from '../shared/utils/AppError.ts';
 
-// Função auxiliar para escapar dados para CSV
+// Função escapeCSV (sem alterações)
 function escapeCSV(val: any) {
   if (val === null || val === undefined) return '';
   let str = String(val);
@@ -14,43 +14,37 @@ function escapeCSV(val: any) {
   return str;
 }
 
-serve(async (req: Request) => {
+/**
+ * --- CORREÇÃO 1 ---
+ * O handler agora aceita 'client' como argumento.
+ * Use 'any' para simplificar a tipagem com o mock.
+ */
+export async function handler(req: Request, client: any) {
   try {
-    const client = supabaseClient(req)
+    /**
+     * --- CORREÇÃO 2 ---
+     * Removemos esta linha. Usaremos o 'client' vindo do argumento.
+     */
+    // const client = supabaseClient(req); 
 
     const { data: { user } } = await client.auth.getUser();
     if (!user) {
-      throw AppError.unauthorized();
+      throw AppError.unauthorized("User not authenticated"); 
     }
 
-    // 2. CONSULTA AO BANCO (AGORA USANDO A VIEW)
-    // A RLS (Row Level Security) na VIEW 'user_order_details'
-    // cuida da segurança automaticamente, filtrando pelo user_id.
     const { data, error: dbError } = await client
-      .from('user_order_details') // <-- MUDANÇA PRINCIPAL AQUI
-      .select('*');                 // <-- Pega todas as colunas já formatadas
+      .from('user_order_details')
+      .select('*');
 
     if (dbError) throw dbError;
 
-    // 3. FORMATAÇÃO DO CSV (AGORA COM UM LOOP SIMPLES)
-    // Os headers batem com os aliases da VIEW
+    // ... (O resto do seu 'try' block está perfeito) ...
     const headers = [
-      'order_id',
-      'order_created_at',
-      'order_status',
-      'order_total_price',
-      'item_id',
-      'item_quantity', // <-- Veio de order_items.total_quantity
-      'item_total_price',
-      'product_id',
-      'product_name',
-      'product_unit_price', // <-- Veio de products.price
+      'order_id', 'order_created_at', 'order_status', 'order_total_price',
+      'item_id', 'item_quantity', 'item_total_price', 'product_id',
+      'product_name', 'product_unit_price',
     ];
-    
     let csvContent = headers.join(',') + '\n';
-
-    // O loop aninhado foi substituído por um loop único
-    // 'data' já é um array plano com todas as linhas
     for (const row of data) {
       const csvRow = [
         escapeCSV(row.order_id),
@@ -66,8 +60,6 @@ serve(async (req: Request) => {
       ];
       csvContent += csvRow.join(',') + '\n';
     }
-
-    // 4. RETORNO DO ARQUIVO
     const timestamp = new Date().toISOString().split('T')[0];
     const filename = `orders_export_${timestamp}.csv`;
     const headersWithFile = {
@@ -75,12 +67,32 @@ serve(async (req: Request) => {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="${filename}"`,
     };
-    
     return new Response(csvContent, { headers: headersWithFile });
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    // ... (Seu 'catch' block está perfeito) ...
+    if (error instanceof AppError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: error.statusCode,
+      });
+    }
+    let errorMessage = "An unexpected error occurred.";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
   }
+}
+
+/**
+ * --- CORREÇÃO 3 ---
+ * O 'serve' agora cria o cliente real e o "injeta" no handler.
+ */
+serve((req: Request) => {
+  const client = supabaseClient(req); // O cliente real é criado aqui
+  return handler(req, client);        // E passado para o handler
 });
