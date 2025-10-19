@@ -1,4 +1,4 @@
-import { corsHeaders } from "../const/corsHeaders";
+import { corsHeaders } from "../const/corsHeaders.ts";
 
 
 export class AppResponse<T> extends Response {

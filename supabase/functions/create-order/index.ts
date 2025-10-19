@@ -1,8 +1,8 @@
 // @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { AppError } from "../shared/AppError"
-import { AppResponse } from "../shared/AppResponse";
-import { corsHeaders } from "../const/corsHeaders";
+import { AppError } from "../shared/AppError.ts"
+import { AppResponse } from "../shared/AppResponse.ts";
+import { corsHeaders } from "../const/corsHeaders.ts";
 
 // @ts-ignore
 Deno.serve(async (req)=>{
@@ -37,8 +37,8 @@ Deno.serve(async (req)=>{
     }
 
     // 4. CHAMAR A FUNÇÃO SQL (RPC)
-    const { data, error } = await supabaseClient.rpc("create-order", {
-      order_items: items
+    const { data, error } = await supabaseClient.rpc("create_order", {
+      cart_items: items
     });
 
     // 5. Tratar erro da chamada RPC (ex: rede, permissão)
