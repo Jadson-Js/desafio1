@@ -10,16 +10,16 @@ DECLARE
   product_info RECORD;
   total_price NUMERIC := 0;
 BEGIN
-  -- 1. Loop de verificação, cálculo de preço e trava
+  -- 1. Loop de verificação (Variável do loop é 'item')
+  --    Usando o alias 'x' para o recordset para evitar ambiguidade AQUI
   FOR item IN 
-    SELECT * FROM jsonb_to_recordset(cart_items) AS item(product_id BIGINT, quantity INT)
+    SELECT * FROM jsonb_to_recordset(cart_items) AS x(product_id BIGINT, quantity INT)
   LOOP
-    -- 2. Trava a linha do produto e obtém dados
-    --    CORRIGIDO: Seleciona 'stock_quantity' e 'price'
+    -- 2. Trava a linha do produto
     SELECT price, quantity INTO product_info
     FROM products
-    WHERE id = item.product_id
-    FOR UPDATE; -- Trava esta linha até o fim da transação
+    WHERE id = item.product_id -- 'item' refere-se à variável do loop
+    FOR UPDATE; 
 
     -- 3. Verifica se o produto existe
     IF NOT FOUND THEN
@@ -27,7 +27,6 @@ BEGIN
     END IF;
 
     -- 4. Verifica o estoque
-    --    CORRIGIDO: Acessa 'product_info.stock_quantity'
     IF product_info.quantity < item.quantity THEN
       RAISE EXCEPTION 'Estoque insuficiente para o produto ID %. Disponível: %, Solicitado: %', item.product_id, product_info.quantity, item.quantity;
     END IF;
@@ -41,25 +40,26 @@ BEGIN
   VALUES (auth.uid(), 'pending', total_price)
   RETURNING id INTO new_order_id;
 
-  -- 7. OTIMIZADO: Insere os itens do pedido em lote (uma única query)
-  INSERT INTO order_items (order_id, product_id, quantity, total_price)
-  SELECT new_order_id, p.id, item.quantity, (p.price * item.quantity)
+  -- 7. OTIMIZADO: Insere os itens do pedido em lote
+  --    CORRIGIDO: Usando o alias 'cart_item' para o recordset
+  INSERT INTO order_items (order_id, product_id, total_quantity, total_price)
+  SELECT new_order_id, p.id, cart_item.quantity, (p.price * cart_item.quantity)
   FROM products p
-  JOIN jsonb_to_recordset(cart_items) AS item(product_id BIGINT, quantity INT) 
-    ON p.id = item.product_id;
+  JOIN jsonb_to_recordset(cart_items) AS cart_item(product_id BIGINT, quantity INT) 
+    ON p.id = cart_item.product_id; -- 'cart_item' refere-se ao alias
     
-  -- 8. OTIMIZADO: Subtrai o estoque em lote (uma única query)
-  --    CORRIGIDO: Atualiza 'stock_quantity'
+  -- 8. OTIMIZADO: Subtrai o estoque em lote
+  --    CORRIGIDO: Usando o alias 'cart_item' para o recordset
   UPDATE products p
-  SET quantity = p.quantity - item.quantity
-  FROM jsonb_to_recordset(cart_items) AS item(product_id BIGINT, quantity INT)
-  WHERE p.id = item.product_id;
+  SET quantity = p.quantity - cart_item.quantity
+  FROM jsonb_to_recordset(cart_items) AS cart_item(product_id BIGINT, quantity INT)
+  WHERE p.id = cart_item.product_id; -- 'cart_item' refere-se ao alias
 
-  -- 9. Sucesso! Retorna o ID do pedido.
+  -- 9. Sucesso!
   RETURN jsonb_build_object('order_id', new_order_id, 'status', 'success');
 
 EXCEPTION
-  -- 10. Se qualquer 'RAISE EXCEPTION' acontecer, tudo é desfeito (rollback).
+  -- 10. Rollback
   WHEN OTHERS THEN
     RETURN jsonb_build_object('status', 'error', 'message', SQLERRM);
 END;
