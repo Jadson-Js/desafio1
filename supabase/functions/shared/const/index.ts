@@ -1,5 +1,9 @@
 //@ts-ignore
 export const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+
+//@ts-ignore
+export const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+
 //@ts-ignore
 export const supabaseServiceRoleKey = Deno.env.get("SUPABASE_URL") ?? ""
 //@ts-ignore

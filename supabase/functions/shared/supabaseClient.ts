@@ -17,6 +17,3 @@ export function supabaseClient (req: Request): SupabaseClient {
     }
   });
 }
-
-
-
