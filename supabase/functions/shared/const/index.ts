@@ -1,5 +1,9 @@
+//@ts-ignore
 export const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+//@ts-ignore
 export const supabaseServiceRoleKey = Deno.env.get("SUPABASE_URL") ?? ""
+//@ts-ignore
+export const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? ""
 
 export const StatusOrder = {
   PENDING: 'PENDING',

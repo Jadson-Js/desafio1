@@ -1,32 +1,44 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@14.0.0";
+import { stripeSecretKey } from "../shared/const/index.ts";
 
-// Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 
-console.log("Hello from Functions!")
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"), { apiVersion: "2023-08-16" });
 
 Deno.serve(async (req) => {
-  const { name } = await req.json()
-  const data = {
-    message: `Hello ${name}!`,
-  }
+  const { order_id } = await req.json();
+  if (!order_id)
+    return new Response(JSON.stringify({ error: "order_id é obrigatório" }), { status: 400 });
+
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+  );
+
+  const { data: order, error } = await supabaseClient
+    .from("orders")
+    .select("total_price")
+    .eq("id", order_id)
+    .single();
+
+  if (error || !order)
+    return new Response(JSON.stringify({ error: "Pedido não encontrado" }), { status: 404 });
+
+  const paymentIntent = await stripe.paymentIntents.create({
+      amount: order.total_price,
+      currency: 'brl',
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never' // <-- Adicione esta linha
+      },
+      metadata: {
+        supabase_order_id: order_id
+      }
+    })
 
   return new Response(
-    JSON.stringify(data),
-    { headers: { "Content-Type": "application/json" } },
-  )
-})
-
-/* To invoke locally:
-
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
-
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/create-payment-intent' \
-    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
-    --header 'Content-Type: application/json' \
-    --data '{"name":"Functions"}'
-
-*/
+    JSON.stringify({ client_secret: paymentIntent.client_secret }),
+    { status: 200, headers: { "Content-Type": "application/json" } }
+  );
+});
