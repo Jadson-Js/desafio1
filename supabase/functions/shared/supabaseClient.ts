@@ -1,19 +1,23 @@
 // @ts-ignore
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { supabaseServiceRoleKey, supabaseUrl } from "./const/index.ts";
+import { supabaseAnonKey, supabaseUrl } from "./const/index.ts";
 
-export function supabaseClient (req: Request): SupabaseClient {
+export function supabaseClient(req: Request): SupabaseClient {
   const authHeader = req.headers.get('Authorization');
+  
   if (!authHeader) {
     throw new Error('Missing authorization header');
   }
 
-  //@ts-ignore
-  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+  // Cria o client com a anon key e passa o token no header
+  // @ts-ignore
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
-        Authorization: req.headers.get("Authorization") ?? ""
+        Authorization: authHeader
       }
     }
   });
+
+  return client;
 }
