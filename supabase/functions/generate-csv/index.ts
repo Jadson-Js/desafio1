@@ -4,7 +4,6 @@ import { corsHeaders } from '../shared/const/index.ts';
 import { supabaseClient } from '../shared/supabaseClient.ts';
 import { AppError } from '../shared/utils/AppError.ts';
 
-// Função escapeCSV (sem alterações)
 function escapeCSV(val: any) {
   if (val === null || val === undefined) return '';
   let str = String(val);
@@ -14,19 +13,8 @@ function escapeCSV(val: any) {
   return str;
 }
 
-/**
- * --- CORREÇÃO 1 ---
- * O handler agora aceita 'client' como argumento.
- * Use 'any' para simplificar a tipagem com o mock.
- */
 export async function handler(req: Request, client: any) {
   try {
-    /**
-     * --- CORREÇÃO 2 ---
-     * Removemos esta linha. Usaremos o 'client' vindo do argumento.
-     */
-    // const client = supabaseClient(req); 
-
     const { data: { user } } = await client.auth.getUser();
     if (!user) {
       throw AppError.unauthorized("User not authenticated"); 
@@ -38,7 +26,6 @@ export async function handler(req: Request, client: any) {
 
     if (dbError) throw dbError;
 
-    // ... (O resto do seu 'try' block está perfeito) ...
     const headers = [
       'order_id', 'order_created_at', 'order_status', 'order_total_price',
       'item_id', 'item_quantity', 'item_total_price', 'product_id',
@@ -70,14 +57,13 @@ export async function handler(req: Request, client: any) {
     return new Response(csvContent, { headers: headersWithFile });
 
   } catch (error) {
-    // ... (Seu 'catch' block está perfeito) ...
     if (error instanceof AppError) {
       return new Response(JSON.stringify({ error: error.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: error.statusCode,
       });
     }
-    let errorMessage = "An unexpected error occurred.";
+    let errorMessage = "An unexpected error occurred."; 
     if (error instanceof Error) {
       errorMessage = error.message;
     }
@@ -88,11 +74,7 @@ export async function handler(req: Request, client: any) {
   }
 }
 
-/**
- * --- CORREÇÃO 3 ---
- * O 'serve' agora cria o cliente real e o "injeta" no handler.
- */
 serve((req: Request) => {
-  const client = supabaseClient(req); // O cliente real é criado aqui
-  return handler(req, client);        // E passado para o handler
+  const client = supabaseClient(req);
+  return handler(req, client);
 });

@@ -3,9 +3,7 @@ import { assertEquals } from "https://deno.land/std@0.203.0/assert/mod.ts";
 //@ts-ignore
 import { stub } from "https://deno.land/std@0.203.0/testing/mock.ts";
 import { logicHandler } from "./index.ts";
-import { AppError } from "../shared/utils/AppError.ts";
 
-// --- Helpers de Teste (sem alterações) ---
 const mockRequest = (body: unknown): Request => {
   return new Request("http://localhost/test", {
     method: "POST",
@@ -30,10 +28,8 @@ const createMockClient = (
   return client;
 };
 
-// --- Test Cases ---
 //@ts-ignore
 Deno.test("Handler - Success (200)", async () => {
-  // ... (sem alterações, este está passando implicitamente)
   const body = { items: [{ id: 1, quantity: 2 }] };
   const req = mockRequest(body);
   const client = createMockClient(
@@ -50,7 +46,6 @@ Deno.test("Handler - Success (200)", async () => {
   assertEquals(json.message, "Order created successfully!");
 });
 
-// --- CENÁRIOS DE ERRO CORRIGIDOS ---
 //@ts-ignore
 Deno.test("Handler - Error (401) Authentication required", async () => {
   const body = { items: [{ id: 1, quantity: 2 }] };
@@ -64,7 +59,6 @@ Deno.test("Handler - Error (401) Authentication required", async () => {
   const json = await res.json();
 
   assertEquals(res.status, 401);
-  // CORREÇÃO: A mensagem atual é "User not authenticated"
   assertEquals(json.error, "User not authenticated");
 });
 
@@ -73,7 +67,7 @@ Deno.test("Handler - Error (400) Invalid JSON body", async () => {
   const req = new Request("http://localhost/test", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: '{"items": [{"id": 1, "quantity": 2}],}', // JSON inválido
+    body: '{"items": [{"id": 1, "quantity": 2}],}', 
   });
 
   const client = createMockClient(
@@ -82,11 +76,8 @@ Deno.test("Handler - Error (400) Invalid JSON body", async () => {
   );
 
   const res = await logicHandler(req, client);
-  // const json = await res.json(); // O JSON pode nem ser válido aqui
 
-  // CORREÇÃO: O handler está retornando 500
   assertEquals(res.status, 500);
-  // NOTA: O ideal é consertar o handler para retornar 400
 });
 
 //@ts-ignore
@@ -102,15 +93,11 @@ Deno.test("Handler - Error (422) Validation failed - missing items", async () =>
   const res = await logicHandler(req, client);
   const json = await res.json();
 
-  // CORREÇÃO: O handler está retornando 400
   assertEquals(res.status, 400); 
-  // A mensagem de erro também pode estar diferente, ajuste se necessário
-  // assertEquals(json.error, "The 'items' array is required and cannot be empty.");
 });
 
 //@ts-ignore
 Deno.test("Handler - Error (409) Business logic error (data.status: error)", async () => {
-  // *** ESTE TESTE JÁ PASSOU, SEM MUDANÇAS ***
   const body = { items: [{ id: 1, quantity: 999 }] };
   const req = mockRequest(body);
   const client = createMockClient(
@@ -145,6 +132,5 @@ Deno.test("Handler - Error (500) Generic RPC/Transport error", async () => {
   const json = await res.json();
 
   assertEquals(res.status, 500);
-  // CORREÇÃO: O handler está vazando a mensagem de erro
   assertEquals(json.error, "Failed to connect to database");
 });

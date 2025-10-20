@@ -9,7 +9,6 @@ export function supabaseClient(req: Request): SupabaseClient {
     throw new Error('Missing authorization header');
   }
 
-  // Cria o client com a anon key e passa o token no header
   // @ts-ignore
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     global: {

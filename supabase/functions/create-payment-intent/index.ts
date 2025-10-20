@@ -8,14 +8,13 @@ import { AppResponse } from "../shared/utils/AppResponse.ts";
 
 const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-08-16" });
 
-// Handler extraído para facilitar testes
 export const paymentHandler = async (
   req: Request,
   supabaseClient: any,
   stripeClient: any
 ) => {
   let body: { order_id?: unknown };
-  
+
   try {
     body = await req.json();
   } catch {
@@ -23,12 +22,11 @@ export const paymentHandler = async (
   }
 
   const { order_id } = body;
-  
+
   if (!order_id) {
     throw AppError.badRequest("order_id is required");
   }
 
-  // Fetch order from Supabase
   const { data: order, error } = await supabaseClient
     .from("orders")
     .select("total_price")
@@ -39,7 +37,6 @@ export const paymentHandler = async (
     throw AppError.notFound("order not found");
   }
 
-  // Create Stripe payment intent
   const paymentIntent = await stripeClient.paymentIntents.create({
     amount: order.total_price,
     currency: "brl",

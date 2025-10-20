@@ -3,11 +3,8 @@ import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.203.
 // @ts-ignore
 import { stub } from "https://deno.land/std@0.203.0/testing/mock.ts";
 import { handler } from "./index.ts";
-import { AppError } from "../shared/utils/AppError.ts";
 
-// --- Helpers (sem alterações) ---
 const mockRequest = (): Request => {
-  // ...
   return new Request("http://localhost/export", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18,7 +15,7 @@ const createMockClient = (
   authResponse: { user: unknown; error: unknown },
   fromResponse: { data: unknown; error: unknown },
 ) => {
-  // ... (sem alterações)
+
   const client: any = { auth: {}, from: () => ({ select: () => Promise.resolve(fromResponse) }) };
   stub(client.auth, "getUser", () => Promise.resolve({ data: { user: authResponse.user }, error: authResponse.error }));
   stub(client, "from", (...args: unknown[]) => {
@@ -29,9 +26,8 @@ const createMockClient = (
   return client;
 };
 
-// --- Dados Mockados (sem alterações) ---
+
 const mockDbData = [
-  // ... (seus dados mockados)
   {
     order_id: 101, order_created_at: "2025-10-19T14:00:00Z", order_status: "completed",
     order_total_price: 150.50, item_id: 201, item_quantity: 2, item_total_price: 50.00,
@@ -44,21 +40,16 @@ const mockDbData = [
   },
 ];
 
-// --- Test Cases ---
 // @ts-ignore
 Deno.test("Handler - Success (200) - Generates CSV", async () => {
-  // 1. Setup
   const req = mockRequest();
-  const client = createMockClient( // Cliente mockado
+  const client = createMockClient(
     { user: { id: "user-123" }, error: null },
     { data: mockDbData, error: null },
   );
 
-  // 2. Execução
-  // --- CORREÇÃO AQUI ---
-  const res = await handler(req, client); // <-- Passe o client mockado
+  const res = await handler(req, client);
 
-  // 3. Assertivas (agora devem passar)
   assertEquals(res.status, 200);
   assertStringIncludes(res.headers.get("Content-Type")!, "text/csv");
   const lines = (await res.text()).trim().split('\n');
@@ -75,8 +66,7 @@ Deno.test("Handler - Success (200) - Correctly escapes CSV values", async () => 
     { data: dataWithQuotes, error: null },
   );
 
-  // --- CORREÇÃO AQUI ---
-  const res = await handler(req, client); // <-- Passe o client mockado
+  const res = await handler(req, client);
 
   const lines = (await res.text()).trim().split('\n');
   const expectedCsvRow = '101,2025-10-19T14:00:00Z,completed,150.5,201,2,50,301,"Product, ""with"" quotes",25';
@@ -91,8 +81,7 @@ Deno.test("Handler - Error (401) Authentication required", async () => {
     { data: null, error: null },
   );
 
-  // --- CORREÇÃO AQUI ---
-  const res = await handler(req, client); // <-- Passe o client mockado
+  const res = await handler(req, client);
 
   const json = await res.json();
   assertEquals(res.status, 401);
@@ -107,8 +96,7 @@ Deno.test("Handler - Error (500) Database query failed", async () => {
     { data: null, error: { message: "An unexpected error occurred." } },
   );
 
-  // --- CORREÇÃO AQUI ---
-  const res = await handler(req, client); // <-- Passe o client mockado
+  const res = await handler(req, client);
 
   const json = await res.json();
   assertEquals(res.status, 500);

@@ -4,7 +4,7 @@ import { assertEquals } from "https://deno.land/std@0.203.0/assert/mod.ts";
 import { stub } from "https://deno.land/std@0.203.0/testing/mock.ts";
 import { stripeWebhookHandler } from "./index.ts";
 
-// --- Helpers de Teste ---
+
 const mockRequest = (body: string, signature: string): Request => {
   return new Request("http://localhost/webhook", {
     method: "POST",
@@ -59,7 +59,6 @@ const createMockSupabaseClient = (shouldSucceed: boolean = true) => {
   return client;
 };
 
-// --- Test Cases ---
 
 //@ts-ignore
 Deno.test("Webhook - Success (200) Payment intent succeeded", async () => {
@@ -136,7 +135,7 @@ Deno.test("Webhook - Error (500) Database update failed", async () => {
   const req = mockRequest(body, "valid_signature");
   
   const stripeClient = createMockStripeClient(true, mockPaymentIntentSucceededEvent("order-123"));
-  const supabaseClient = createMockSupabaseClient(false); // Simula erro no DB
+  const supabaseClient = createMockSupabaseClient(false); 
 
   const res = await stripeWebhookHandler(req, stripeClient, supabaseClient, "webhook_secret");
   const json = await res.json();

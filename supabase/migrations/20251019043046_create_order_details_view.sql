@@ -1,7 +1,5 @@
--- Arquivo: supabase/migrations/xxxxxxxx_create_order_details_view.sql
-
 CREATE OR REPLACE VIEW public.user_order_details
-WITH (security_invoker = true) -- <<< ISSO É IMPORTANTE
+WITH (security_invoker = true)
 AS
 SELECT
     orders.id AS order_id,
@@ -23,5 +21,4 @@ JOIN
 JOIN 
     products ON order_items.product_id = products.id;
     
--- 4. Garante que usuários logados possam LER a view
 GRANT SELECT ON public.user_order_details TO authenticated;
