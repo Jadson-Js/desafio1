@@ -140,6 +140,7 @@ A estratégia de RLS é "negar por padrão" e habilitar apenas o necessário.
 ### Passos para Execução
 
 1.  **Iniciar os serviços do Supabase:**
+    _(Certifique-se que o Docker esteja em execução)_
 
     ```bash
     supabase start
@@ -249,7 +250,140 @@ curl --request POST \
  --header 'apiKey: [SUA_ANON_KEY]'
 ```
 
-## 8\. Testes Automatizados
+## 8\. Fluxo de Teste Prático (End-to-End)
+
+Esta seção descreve um fluxo completo, desde a criação do usuário até a simulação de pagamento via Stripe CLI.
+
+**Substitua as variáveis:**
+
+- `SUPABASE_URL` → no **Dashboard do projeto Supabase** → Settings → API → URL
+- `SUPABASE_ANON_KEY` → Dashboard → Settings → API → anon key
+- `SUPABASE_SERVICE_ROLE_KEY` → Dashboard → Settings → API → service_role key
+- `STRIPE_PUBLIC_KEY` → Dashboard Stripe → Developers → API Keys → Publishable key
+- `STRIPE_SECRET_KEY` → Dashboard Stripe → Developers → API Keys → Secret key
+- `STRIPE_WEBHOOK_SECRET` → Dashboard Stripe → Developers → Webhooks → Your endpoint → Reveal secret
+
+---
+
+**1. Preparação do Ambiente:**
+Certifique-se de que o Docker esteja em execução (se rodando local) e que você tenha o [Stripe CLI](https://stripe.com/docs/stripe-cli) instalado e configurado.
+
+**2. Preparar Terminais:**
+Abra dois terminais.
+
+- **Terminal 1:** Será usado para os comandos `curl`.
+- **Terminal 2:** Será usado para o Stripe CLI.
+
+**3. Configurar Secrets:**
+Certifique-se de que suas `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `STRIPE_SECRET_KEY` estejam configuradas no Supabase (seja no `.env` local ou no dashboard do projeto).
+
+**4. Criar Usuário (Sign Up):**
+_(Este passo assume que a confirmação de e-mail está desabilitada para o teste, ou que você irá confirmá-lo)_
+
+```bash
+curl --request POST \
+  --url [SEU_PROJECT_URL]/auth/v1/signup \
+  --header 'Content-Type: application/json' \
+  --header 'apiKey: [SUA_ANON_KEY]' \
+  --data '{
+ "email": "teste.fluxo@exemplo.com",
+ "password": "admin123"
+}'
+```
+
+**5. Confirmação de E-mail:**
+Se a confirmação de e-mail estiver habilitada, acesse o e-mail (no Inbucket local: `http://localhost:54324` ou no seu provedor) e confirme a conta.
+
+**6. Fazer Login (Obter Token):**
+Execute este comando para obter o `access_token`.
+
+```bash
+curl --request POST \
+  --url '[SEU_PROJECT_URL]/auth/v1/token?grant_type=password' \
+  --header 'Content-Type: application/json' \
+  --header 'apiKey: [SUA_ANON_KEY]' \
+  --data '{
+ "email": "teste.fluxo@exemplo.com",
+ "password": "admin123"
+}'
+```
+
+**-\> Guarde o `access_token` retornado.**
+
+**7. Popular Produtos (Manual):**
+Acesse o Supabase Studio (local ou remoto) e, na tabela `products`, adicione manualmente pelo menos dois produtos para o teste (ex: `product_id: 1` e `product_id: 2`), garantindo que eles tenham estoque (`quantity`) suficiente.
+
+**8. Criar um Pedido:**
+Use o token do passo 6 para criar um pedido.
+
+```bash
+curl --request POST \
+  --url [SEU_PROJECT_URL]/functions/v1/create-order \
+  --header 'Authorization: Bearer [SEU_USER_TOKEN]' \
+  --header 'Content-Type: application/json' \
+  --header 'apiKey: [SUA_ANON_KEY]' \
+  --data '{
+  "items": [
+    { "product_id": 1, "quantity": 3 },
+    { "product_id": 2, "quantity": 1 }
+  ]
+}'
+```
+
+**-\> Guarde o `orderId` retornado na resposta.**
+
+**9. Criar Intenção de Pagamento:**
+Use o `orderId` do passo 8.
+
+```bash
+curl --request POST \
+  --url [SEU_PROJECT_URL]/functions/v1/create-payment-intent \
+  --header 'Authorization: Bearer [SEU_USER_TOKEN]' \
+  --header 'Content-Type: application/json' \
+  --header 'apiKey: [SUA_ANON_KEY]' \
+  --data '{
+  "order_id": "[SEU_ORDER_ID]"
+}'
+```
+
+**-\> Guarde o ID do Payment Intent (ex: `pi_...`) que está dentro do `client_secret` retornado.**
+
+**10. Iniciar Webhook Listener (Terminal 2):**
+No seu segundo terminal, faça login no Stripe CLI e inicie o listener para encaminhar eventos para sua Edge Function.
+
+```bash
+# Primeiro, faça login (se ainda não fez)
+stripe login
+
+# Inicie o listener
+stripe listen --forward-to [SEU_PROJECT_URL]/functions/v1/stripe-webhook
+```
+
+**11. Simular Confirmação de Pagamento (Terminal 2):**
+Use o Payment Intent ID (`pi_...`) do passo 9 para simular uma confirmação de pagamento com um cartão de teste.
+
+```bash
+# Use o ID do Payment Intent (pi_...)
+stripe payment_intents confirm [SEU_PAYMENT_INTENT_ID] --payment-method pm_card_visa
+```
+
+- Observe o **Terminal 2**: Você deverá ver os eventos do Stripe (como `payment_intent.succeeded`) sendo recebidos e encaminhados.
+- Verifique no Supabase Studio: O `status` do seu pedido na tabela `orders` deve mudar para `SUCCESS`.
+
+**12. Gerar Planilha CSV (Terminal 1):**
+Após o pagamento bem-sucedido, você pode testar a exportação de CSV.
+
+```bash
+curl --request POST \
+  --url [SEU_PROJECT_URL]/functions/v1/generate-csv \
+  --header 'Authorization: Bearer [SEU_USER_TOKEN]' \
+  --header 'Content-Type: application/json' \
+  --header 'apiKey: [SUA_ANON_KEY]'
+```
+
+_(Isso deve retornar um conteúdo CSV contendo os detalhes do pedido confirmado.)_
+
+## 9\. Testes Automatizados
 
 O projeto inclui testes unitários para as Edge Functions e testes para as funções SQL.
 
@@ -261,16 +395,17 @@ deno test --allow-net
 supabase db test
 ```
 
-## 9\. Decisões de Design Adicionais
+## 10\. Decisões de Design Adicionais
 
 - **Triggers para `updated_at`:** Utilizei triggers em todas as tabelas para atualizar automaticamente o campo `updated_at`, facilitando a auditoria.
 - **Gatilho de Estoque:** Implementei um gatilho para garantir que o estoque (`products.quantity`) se mantenha sempre coerente (ex: não ficar negativo).
 - **Supabase CLI:** O uso do CLI foi essencial para permitir o versionamento de todo o schema do banco de dados (`supabase/migrations`), facilitando o deploy e o desenvolvimento em equipe.
 
-## 10\. Melhorias Futuras
+## 11\. Melhorias Futuras
 
 Se houvesse mais tempo, as seguintes funcionalidades seriam adicionadas:
 
 - **RBAC (Role-Based Access Control):** Implementar um sistema de permissões para diferenciar usuários (clientes) de administradores (que poderiam gerenciar produtos pelo Studio).
 - **E-mail de Confirmação:** Envio de e-mail transacional (usando Resend ou SendGrid) após a confirmação do pedido (`status: SUCCESS`).
 - **Interface de Checkout:** Uma interface de frontend simples (ex: Next.js) para consumir a API e finalizar o pagamento com o Stripe.
+- **Tratamento de Erros Aprimorado:** Adicionar mensagens de erro mais descritivas e padronizadas, com códigos de status consistentes e logs detalhados para facilitar depuração e monitoramento.
