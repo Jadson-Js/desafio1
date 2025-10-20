@@ -1,7 +1,3 @@
-Aqui está uma proposta de `README.md` completa, gerada a partir das suas respostas. Eu organizei as informações para que fiquem claras, profissionais e destaquem os pontos fortes da sua implementação para um avaliador.
-
----
-
 # Backend Escribo - Teste Técnico Supabase
 
 Este repositório contém a solução para o teste técnico de Desenvolvedor Júnior/Estagiário, focado na construção de um backend de e-commerce utilizando Supabase.
