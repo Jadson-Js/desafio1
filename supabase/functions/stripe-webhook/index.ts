@@ -1,6 +1,8 @@
+//@ts-ignore
 import Stripe from "https://esm.sh/stripe@14.0.0";
+//@ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { StatusOrder } from '../shared/const/index.ts'
+import { StatusOrder, stripeSecretKey, stripeWebHookSecret, supabaseServiceRoleKey, supabaseUrl } from '../shared/const/index.ts'
 
 // Handler extraído para facilitar testes
 export const stripeWebhookHandler = async (
@@ -70,23 +72,22 @@ export const stripeWebhookHandler = async (
 };
 
 // Deno.serve handler
+//@ts-ignore
 Deno.serve(async (req) => {
-  const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, {
+  const stripe = new Stripe(stripeSecretKey!, {
     apiVersion: '2023-10-16',
     httpClient: Stripe.createFetchHttpClient()
   });
 
   const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    supabaseUrl!,
+    supabaseServiceRoleKey!
   );
-
-  const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
 
   return await stripeWebhookHandler(
     req,
     stripe,
     supabaseAdmin,
-    webhookSecret
+    stripeWebHookSecret
   );
 });
